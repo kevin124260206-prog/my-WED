@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>核心後端控制總署 (最高權限核心)</title>
+  <script src="https://script.google.com/macros/s/AKfycbxtSzoW6ECdVYYa_twHmGP2-cvnRuqWVLhmdNwK_wmT3QcsfJNsxjLsgKj9A1R8uX56/exec"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #101620; }
+    ::-webkit-scrollbar-thumb { background: #2c3749; border-radius: 10px; }
+    .tab-active { border-bottom: 2px solid #38bdf8; color: #38bdf8; }
+  </style>
+</head>
+<body id="bodyBg" class="bg-[#0f141c] text-slate-200 min-h-screen font-sans transition-colors duration-300 relative pb-12">
+
+  <div id="loginModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-[#18202c] w-full max-w-md rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
+      <div class="p-5 flex items-center justify-between border-b border-slate-700/40">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🔐</span>
+          <h2 class="text-base font-bold text-sky-400 tracking-wide">管理員安全核驗</h2>
+        </div>
+        <button onclick="bypassToVisitor()" class="text-slate-500 hover:text-slate-300 text-xs underline">以訪客模式檢視</button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">管理員帳號</label>
+          <input type="text" id="adminUser" class="w-full bg-[#101620] border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-sky-500 text-sm" placeholder="請輸入帳號">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">安全防禦金鑰 (密碼)</label>
+          <input type="password" id="adminPass" class="w-full bg-[#101620] border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-sky-500 text-sm" placeholder="請輸入密碼">
+        </div>
+        <p id="loginError" class="text-xs text-rose-400 hidden"></p>
+        <div class="grid grid-cols-2 gap-4 pt-2">
+          <button onclick="alert('安全防禦機制：拒絕無憑證存取。')" class="bg-[#2c3749] text-slate-300 font-medium py-3 rounded-xl hover:bg-[#36445a] text-sm">取消</button>
+          <button onclick="submitLogin()" id="loginBtn" class="bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-400 text-sm shadow-lg shadow-sky-500/20">安全登入</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-4xl mx-auto p-4 md:p-8">
+    
+    <div class="bg-[#161f2b] p-5 rounded-2xl border border-slate-700/40 flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-sky-500/10 p-2 rounded-xl text-sky-400 font-bold">⚙️</div>
+        <div>
+          <h1 class="text-base font-bold text-slate-100 tracking-wide">核心後端控制總署 <span class="text-xs font-normal text-slate-400" id="roleBadge">(未登入訪客模式)</span></h1>
+          <p class="text-xs text-slate-500 mt-0.5">LINE自動化通知與動態核心配置排程中心</p>
+        </div>
+      </div>
+      <div id="authActionBtnZone">
+        <button onclick="openLoginModal()" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition-colors">管理員登入</button>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-[#1d2736] to-[#141b26] p-5 rounded-2xl border border-slate-700/50 mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="md:col-span-2 space-y-2">
+        <span class="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded">📋 下次推播快照預覽</span>
+        <h3 class="text-sm font-semibold text-slate-200 pt-1">目前排定的 Google Meet 連結：</h3>
+        <p id="visitorMeetLink" class="text-xs text-sky-400 break-all select-all">載入中...</p>
+        <p class="text-xs text-slate-400">目前發送形式：<span id="visitorMsgType" class="text-slate-200 font-bold">--</span></p>
+      </div>
+      <div class="flex flex-col justify-center items-center bg-[#0f141c] p-3 rounded-xl border border-slate-800">
+        <span class="text-xs text-slate-500 mb-2">卡片代表色 (1/4 區塊)</span>
+        <div id="visitorColorBlock" class="w-16 h-16 rounded-xl shadow-inner transition-colors duration-300" style="background-color: #E91E63;"></div>
+      </div>
+    </div>
+
+    <div id="coreControlDashboard" class="bg-[#161f2b] rounded-2xl border border-slate-700/40 overflow-hidden opacity-30 pointer-events-none transition-all duration-500">
+      
+      <div class="flex border-b border-slate-700/40 bg-[#121924] px-4">
+        <button onclick="switchTab('tab-config')" id="btn-tab-config" class="px-5 py-4 text-xs font-bold tracking-wider text-slate-400 hover:text-slate-200 transition-all tab-active">系統配置</button>
+        <button onclick="switchTab('tab-auth')" id="btn-tab-auth" class="px-5 py-4 text-xs font-bold tracking-wider text-slate-400 hover:text-slate-200 transition-all hidden">帳密權限核發</button>
+        <button onclick="switchTab('tab-schedule')" id="btn-tab-schedule" class="px-5 py-4 text-xs font-bold tracking-wider text-slate-400 hover:text-slate-200 transition-all">維護排程</button>
+        <div class="ml-auto flex items-center pr-2">
+          <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">SECURE MODE</span>
+        </div>
+      </div>
+
+      <div class="p-6">
+        
+        <div id="tab-config" class="tab-content space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-slate-400 mb-2">1. 選擇發送模式 (LINE 訊息類型)</label>
+              <select id="cfgMsgType" onchange="toggleColorPicker()" class="w-full bg-[#101620] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+                <option value="flex">🌸 質感 Flex Message 卡片</option>
+                <option value="text">📝 傳統純文字訊息</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-2">🔗 Google Meet 會議連結更新</label>
+              <input type="url" id="cfgMeetUrl" class="w-full bg-[#101620] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500" placeholder="https://meet.google.com/...">
+            </div>
+          </div>
+
+          <div id="cfgColorZone" class="bg-[#101620] p-4 rounded-xl border border-slate-800 space-y-2">
+            <label class="block text-xs text-amber-400 font-medium">🎨 自訂卡片前端 1/4 標題與按鈕代表色：</label>
+            <div class="flex items-center space-x-3">
+              <input type="color" id="cfgHeaderColor" value="#E91E63" class="w-12 h-9 bg-transparent border-0 cursor-pointer">
+              <span class="text-xs text-slate-500">點擊左側色塊挑選色彩（預設渲染為天使粉 #E91E63）</span>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-700/40 pt-4 space-y-2">
+            <label class="block text-xs text-slate-400 font-medium">更換控制台網站季節背景顏色：</label>
+            <select id="cfgThemeSelect" class="w-full bg-[#101620] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none">
+              <option value="bg-[#0f141c]">☀️ 夏天風格 (極客星空藍)</option>
+              <option value="bg-[#1a1216]">🌸 春天風格 (浪漫櫻花暗粉)</option>
+              <option value="bg-[#1c1912]">🍂 秋天風格 (落葉深邃咖)</option>
+              <option value="bg-[#0c1917]">❄️ 冬天風格 (極光冰晶深綠)</option>
+            </select>
+          </div>
+
+          <button onclick="commitBasicConfig()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs tracking-wider">
+            發佈系統設定變更
+          </button>
+        </div>
+
+        <div id="tab-auth" class="tab-content space-y-6 hidden">
+          <div class="space-y-2">
+            <h3 class="text-xs font-bold text-indigo-400">核發新管理員權限卡：</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input type="text" id="newAdminUser" class="bg-[#101620] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 placeholder-slate-600" placeholder="登入帳號">
+              <input type="password" id="newAdminPass" class="bg-[#101620] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 placeholder-slate-600" placeholder="登入密碼">
+              <button onclick="issueAdminCard()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs transition-colors">核發註冊</button>
+            </div>
+            <div class="bg-[#101620] p-3 rounded-xl border border-slate-800 text-xs">
+              <span class="block mb-2 text-slate-500">目前發卡庫中管理授權人：</span>
+              <ul id="adminCardList" class="list-disc pl-4 space-y-1 text-sky-400">
+                <li class="text-slate-600">目前發卡庫中尚無管理授權人。</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-700/40 pt-4 space-y-4">
+            <h3 class="text-xs font-bold text-amber-500">🔒 帳戶安全更名與重設 (免填舊密碼)：</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input type="text" id="renewUser" class="bg-[#101620] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 placeholder-slate-600" placeholder="輸入全新帳號名稱">
+              <input type="text" id="renewUserConfirm" class="bg-[#101620] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 placeholder-slate-600" placeholder="再次輸入全新帳號確認">
+              <button onclick="updateSuperInfo('name')" class="bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs hover:bg-amber-400 transition-colors">變更帳號名</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input type="password" id="renewPass" class="bg-[#101620] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 placeholder-slate-600" placeholder="輸入全新密碼">
+              <input type="password" id="renewPassConfirm" class="bg-[#101620] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 placeholder-slate-600" placeholder="再次輸入全新密碼確認">
+              <button onclick="updateSuperInfo('pass')" class="bg-rose-500 text-white font-bold py-2 rounded-xl text-xs hover:bg-rose-400 transition-colors">變更密碼</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-schedule" class="tab-content space-y-6 hidden">
+          <div class="flex items-center space-x-2 text-sm font-bold text-slate-200">
+            <span>🗓️</span> <span>建立全新維護排程</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#101620] p-4 rounded-xl border border-slate-800">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1.5">預約執行日期</label>
+              <input type="date" id="schDate" class="w-full bg-[#161f2b] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1.5">預約精準時間 (幾點幾分)</label>
+              <input type="time" id="schTime" class="w-full bg-[#161f2b] border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="block text-xs text-slate-400">排程重複發送次數</label>
+              <div class="flex items-center space-x-4 bg-[#101620] p-2.5 rounded-xl border border-slate-700">
+                <input type="number" id="schRepeat" value="1" min="1" class="w-20 bg-[#161f2b] border border-slate-700 rounded-lg px-2 py-1 text-center text-xs text-slate-200 focus:outline-none">
+                <label class="flex items-center space-x-1.5 text-xs text-amber-400 cursor-pointer select-none">
+                  <input type="checkbox" id="schForever" onchange="toggleForever()" class="w-4 h-4 accent-amber-500">
+                  <span>∞ 永遠發送 (無限期)</span>
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1.5">週期規則設定 (每隔幾個禮拜的星期幾)</label>
+              <div class="flex gap-2">
+                <input type="number" id="schWeeks" value="2" min="1" class="w-16 bg-[#101620] border border-slate-700 rounded-xl px-2 text-center text-xs text-slate-200 focus:outline-none">
+                <span class="text-xs text-slate-500 self-center">個禮拜的星期</span>
+                <select id="schDayOfWeek" class="flex-1 bg-[#101620] border border-slate-700 rounded-xl px-3 text-xs text-slate-200 focus:outline-none">
+                  <option value="四">四 (預設雙週聚會日)</option>
+                  <option value="一">一</option><option value="二">二</option><option value="三">三</option>
+                  <option value="五">五</option><option value="六">六</option><option value="日">日</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="commitSchedule()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl text-xs transition-colors shadow-lg">
+            發布並登記預約排程
+          </button>
+
+          <div class="border-t border-slate-700/40 pt-4">
+            <h4 class="text-xs font-bold text-rose-400 mb-2 flex items-center">📌 執行中排程與歷史登記清單 (最新5筆)</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-[11px] text-slate-400 border-collapse">
+                <thead>
+                  <tr class="bg-[#101620] text-slate-300">
+                    <th class="p-2 border border-slate-800">建立時間</th>
+                    <th class="p-2 border border-slate-800">建立人</th>
+                    <th class="p-2 border border-slate-800">預約時間 / 重複週期</th>
+                    <th class="p-2 border border-slate-800 text-center">狀態 / 安全操作</th>
+                  </tr>
+                </thead>
+                <tbody id="scheduleLogTable">
+                  <tr><td colspan="4" class="p-2 text-center text-slate-600">暫無登記紀錄</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <div class="text-center text-xs text-slate-600 mt-12 border-t border-slate-800/60 pt-4">
+      <p>© 2025 - <span id="copyrightYear"></span> 施柏謙 All Rights Reserved.</p>
+    </div>
+
+  </div>
+
+  <script>
+    let currentAdminName = '';
+    let currentRole = '';
+
+    document.getElementById('copyrightYear').innerText = new Date().getFullYear();
+
+    window.onload = function() {
+      refreshVisitorSnapshot();
+    };
+
+    function refreshVisitorSnapshot() {
+      google.script.run.withSuccessHandler(function(config) {
+        document.getElementById('visitorMeetLink').innerText = config.meetUrl;
+        document.getElementById('visitorMsgType').innerText = config.msgType === 'flex' ? '🌸 Flex Card 卡片' : '📝 純文字訊息';
+        document.getElementById('visitorColorBlock').style.backgroundColor = config.headerColor;
+        document.getElementById('bodyBg').className = config.themeColor + ' text-slate-200 min-h-screen font-sans transition-colors duration-300 relative pb-12';
+        
+        document.getElementById('cfgMeetUrl').value = config.meetUrl;
+        document.getElementById('cfgMsgType').value = config.msgType;
+        document.getElementById('cfgHeaderColor').value = config.headerColor;
+        document.getElementById('cfgThemeSelect').value = config.themeColor;
+        toggleColorPicker();
+      }).getSystemSnapshot();
+    }
+
+    // 控制永遠勾選鈕切換
+    function toggleForever() {
+      const isForever = document.getElementById('schForever').checked;
+      const repeatInput = document.getElementById('schRepeat');
+      if (isForever) {
+        repeatInput.disabled = true;
+        repeatInput.classList.add('opacity-40');
+      } else {
+        repeatInput.disabled = false;
+        repeatInput.classList.remove('opacity-40');
+      }
+    }
+
+    function submitLogin() {
+      const user = document.getElementById('adminUser').value;
+      const pass = document.getElementById('adminPass').value;
+      const err = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
+
+      if (!user || !pass) {
+        err.innerText = '⚠️ 請輸入管理員帳號與安全防禦金鑰！';
+        err.classList.remove('hidden');
+        return;
+      }
+
+      btn.innerText = '安全核驗中...';
+      btn.disabled = true;
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res.success) {
+          currentAdminName = res.name;
+          currentRole = res.role;
+          
+          document.getElementById('loginModal').classList.add('hidden');
+          document.getElementById('coreControlDashboard').classList.remove('opacity-30', 'pointer-events-none');
+          
+          document.getElementById('roleBadge').innerText = `(經安全認證: ${res.role === 'super' ? '最高主權者' : '一般管理員'} - ${res.name})`;
+          document.getElementById('authActionBtnZone').innerHTML = `<button onclick="logoutSecureMode()" class="bg-[#2c3749] hover:bg-rose-600 text-slate-200 px-4 py-2 rounded-xl text-xs font-medium transition-colors">登出安全模式</button>`;
+          
+          if (res.role === 'super') {
+            document.getElementById('btn-tab-auth').classList.remove('hidden');
+          }
+
+          loadLogsAndAdmins();
+        } else {
+          err.innerText = res.message;
+          err.classList.remove('hidden');
+          btn.innerText = '安全登入';
+          btn.disabled = false;
+        }
+      }).checkAdminLogin(user, pass);
+    }
+
+    function loadLogsAndAdmins() {
+      google.script.run.withSuccessHandler(function(logs) {
+        const tbody = document.getElementById('scheduleLogTable');
+        if (logs.length > 0) {
+          tbody.innerHTML = logs.map(row => {
+            // 判斷是否可以側銷（只有狀態為「執行中」才顯示側銷按鈕）
+            let actionHtml = '';
+            if (row.status === '執行中') {
+              actionHtml = `<button onclick="triggerRevoke('${row.timestamp}')" class="bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/20 px-2 py-1 rounded text-[10px] transition-all font-bold">🔴 側銷排程</button>`;
+            } else {
+              actionHtml = `<span class="text-slate-600 font-mono">${row.status}</span>`;
+            }
+
+            return `
+              <tr class="border-b border-slate-800 hover:bg-slate-800/30">
+                <td class="p-2 text-slate-500 font-mono">${row.timestamp}</td>
+                <td class="p-2 text-sky-400 font-semibold">${row.admin}</td>
+                <td class="p-2 text-slate-300">
+                  <div class="text-amber-400 font-bold">${row.date} ${row.time}</div>
+                  <div class="text-[10px] text-slate-500">頻率: ${row.repeat} / 週期: ${row.cycle}</div>
+                </td>
+                <td class="p-2 text-center">${actionHtml}</td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = `<tr><td colspan="4" class="p-2 text-center text-slate-600">暫無登記紀錄</td></tr>`;
+        }
+      }).getRecentSchedules();
+
+      if (currentRole === 'super') {
+        google.script.run.withSuccessHandler(function(admins) {
+          const ul = document.getElementById('adminCardList');
+          if (admins.length > 0) {
+            ul.innerHTML = admins.map(a => `<li>管理員帳號: <span class="text-slate-200 font-semibold">${a.user}</span> <span class="text-[10px] text-slate-600">(${a.time} 核發)</span></li>`).join('');
+          }
+        }).getAdminList();
+      }
+    }
+
+    // 觸發側銷動作
+    function triggerRevoke(timestampStr) {
+      if (!confirm(`⚠️ 確定要撤銷此筆排程嗎？\n建立時間：${timestampStr}\n撤銷後此排程將停止派發。`)) return;
+
+      google.script.run.withSuccessHandler(function(res) {
+        alert(res.message);
+        loadLogsAndAdmins(); // 刷新清單狀態
+      }).revokeSchedule(currentAdminName, timestampStr);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+      document.querySelectorAll('[id^="btn-tab-"]').forEach(btn => btn.classList.remove('tab-active'));
+      document.getElementById('btn-' + tabId).classList.add('tab-active');
+    }
+
+    function toggleColorPicker() {
+      const type = document.getElementById('cfgMsgType').value;
+      document.getElementById('cfgColorZone').style.display = (type === 'text') ? 'none' : 'block';
+    }
+
+    function commitBasicConfig() {
+      const theme = document.getElementById('cfgThemeSelect').value;
+      const url = document.getElementById('cfgMeetUrl').value;
+      const msgType = document.getElementById('cfgMsgType').value;
+      const color = document.getElementById('cfgHeaderColor').value;
+
+      google.script.run.withSuccessHandler(function(msg) {
+        alert(msg);
+        refreshVisitorSnapshot();
+      }).saveSystemConfig(theme, url, msgType, color);
+    }
+
+    function commitSchedule() {
+      const scheduleData = {
+        startDate: document.getElementById('schDate').value,
+        startTime: document.getElementById('schTime').value,
+        repeatCount: document.getElementById('schRepeat').value,
+        isForever: document.getElementById('schForever').checked,
+        weeks: document.getElementById('schWeeks').value,
+        dayOfWeek: document.getElementById('schDayOfWeek').value,
+        msgType: document.getElementById('cfgMsgType').value,
+        meetUrl: document.getElementById('cfgMeetUrl').value,
+        headerColor: document.getElementById('cfgHeaderColor').value
+      };
+
+      if (!scheduleData.startDate || !scheduleData.startTime) {
+        return alert('⚠️ 請填寫完整的預約日期與精準時間！');
+      }
+
+      google.script.run.withSuccessHandler(function(res) {
+        alert(res.message);
+        if (res.success) {
+          loadLogsAndAdmins();
+        }
+      }).commitMaintenanceSchedule(currentAdminName, scheduleData);
+    }
+
+    function issueAdminCard() {
+      const u = document.getElementById('newAdminUser').value;
+      const p = document.getElementById('newAdminPass').value;
+      if (!u || !p) return alert('❌ 請填入欲核發的管理員帳密。');
+
+      google.script.run.withSuccessHandler(function(res) {
+        alert(res.message);
+        if (res.success) {
+          document.getElementById('newAdminUser').value = '';
+          document.getElementById('newAdminPass').value = '';
+          loadLogsAndAdmins();
+        }
+      }).registerNewAdmin(u, p);
+    }
+
+    function updateSuperInfo(type) {
+      if (type === 'name') {
+        const n1 = document.getElementById('renewUser').value;
+        const n2 = document.getElementById('renewUserConfirm').value;
+        if (n1 !== n2 || !n1) return alert('❌ 兩次輸入的帳號名稱不一致或欄位留空！');
+        google.script.run.withSuccessHandler(alert).updateSuperAccount('name', n1);
+      } else {
+        const p1 = document.getElementById('renewPass').value;
+        const p2 = document.getElementById('renewPassConfirm').value;
+        if (p1 !== p2 || !p1) return alert('❌ 兩次輸入的安全防禦金鑰不一致或欄位留空！');
+        google.script.run.withSuccessHandler(alert).updateSuperAccount('pass', p1);
+      }
+    }
+
+    function openLoginModal() {
+      document.getElementById('loginModal').classList.remove('hidden');
+    }
+
+    function bypassToVisitor() {
+      document.getElementById('loginModal').classList.add('hidden');
+    }
+
+    function logoutSecureMode() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>
